@@ -1,0 +1,1061 @@
+<!DOCTYPE html>
+<html lang="ms">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Jaguh Badminton 2D - Badminton Championship</title>
+    <!-- Tailwind CSS for UI styling -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;800;900&display=swap');
+        
+        * {
+            box-sizing: border-box;
+            user-select: none;
+            -webkit-user-select: none;
+            font-family: 'Outfit', sans-serif;
+            touch-action: manipulation;
+        }
+
+        body {
+            background-color: #0f172a;
+            color: #f8fafc;
+            overflow: hidden;
+        }
+
+        /* Responsive Canvas wrapper */
+        .game-container {
+            position: relative;
+            width: 100vw;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            background: radial-gradient(circle at center, #1e293b 0%, #0f172a 100%);
+        }
+
+        canvas {
+            background-color: #0b4f2c;
+            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.6), 0 0 20px rgba(16, 185, 129, 0.2);
+            border-radius: 12px;
+            max-width: 98%;
+            max-height: 80vh;
+        }
+
+        /* Glassmorphism UI overlay */
+        .glass-panel {
+            background: rgba(15, 23, 42, 0.75);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        /* Custom Touch Buttons */
+        .touch-btn {
+            background: rgba(255, 255, 255, 0.15);
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            backdrop-filter: blur(6px);
+            transition: all 0.1s ease;
+        }
+        .touch-btn:active, .touch-btn.active {
+            background: rgba(59, 130, 246, 0.6);
+            transform: scale(0.92);
+            border-color: #60a5fa;
+        }
+
+        /* Glow animation */
+        .glow-text {
+            text-shadow: 0 0 10px rgba(59, 130, 246, 0.5), 0 0 20px rgba(59, 130, 246, 0.3);
+        }
+    </style>
+</head>
+<body class="w-full h-full m-0 p-0 overflow-hidden">
+
+<div class="game-container p-2 sm:p-4">
+    <!-- Top Scoreboard Overlay -->
+    <div class="w-full max-w-4xl flex justify-between items-center mb-2 px-4 py-2 rounded-xl glass-panel shadow-lg border border-slate-700">
+        <!-- Player 1 Score -->
+        <div class="flex items-center space-x-3">
+            <div class="w-10 h-10 rounded-full bg-blue-600 flex items-center justify-center font-bold text-lg shadow-md border-2 border-blue-400">P1</div>
+            <div>
+                <div class="text-xs uppercase tracking-wider text-blue-400 font-semibold" id="p1-name-display">Pemain 1</div>
+                <div class="text-2xl sm:text-3xl font-black text-white" id="score-p1">0</div>
+            </div>
+        </div>
+
+        <!-- Center Match Status / Target Score -->
+        <div class="text-center">
+            <div class="text-xs text-slate-400 uppercase font-bold tracking-widest">Sasaran: <span id="target-score-text">11</span> Mata</div>
+            <div id="game-status-text" class="text-sm font-semibold text-amber-400 animate-pulse">Servis: Pemain 1</div>
+        </div>
+
+        <!-- Player 2 / AI Score -->
+        <div class="flex items-center space-x-3 flex-row-reverse space-x-reverse">
+            <div class="w-10 h-10 rounded-full bg-red-600 flex items-center justify-center font-bold text-lg shadow-md border-2 border-red-400" id="p2-avatar">AI</div>
+            <div class="text-right">
+                <div class="text-xs uppercase tracking-wider text-red-400 font-semibold" id="p2-name-display">Komputer (AI)</div>
+                <div class="text-2xl sm:text-3xl font-black text-white" id="score-p2">0</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Canvas Game Display -->
+    <div class="relative w-full flex justify-center items-center">
+        <canvas id="badmintonCanvas" width="1000" height="550"></canvas>
+
+        <!-- Start / Pause / Game Over Menu Overlay -->
+        <div id="menu-overlay" class="absolute inset-0 flex flex-col justify-center items-center glass-panel rounded-xl z-20 transition-opacity duration-300">
+            <div class="text-center p-6 max-w-md w-full">
+                <h1 class="text-4xl sm:text-5xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-blue-400 via-teal-300 to-indigo-400 mb-2 glow-text">JAGUH BADMINTON</h1>
+                <p class="text-slate-300 text-sm mb-6" id="menu-subtitle">Cabars keupayaan badminton anda dalam perlawanan sengit 2D!</p>
+                
+                <!-- Game Settings -->
+                <div class="bg-slate-800/60 p-4 rounded-lg border border-slate-700 mb-6 text-left space-y-3">
+                    <div>
+                        <label class="text-xs text-slate-400 font-bold block mb-1">Mod Permainan:</label>
+                        <select id="mode-select" class="w-full bg-slate-900 border border-slate-700 rounded p-2 text-sm text-white focus:outline-none focus:border-blue-500">
+                            <option value="vsAI">Pemain vs Komputer (AI)</option>
+                            <option value="vsPlayer">Pemain 1 vs Pemain 2 (Kekunci Sama)</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="text-xs text-slate-400 font-bold block mb-1">Tamat Perlawanan Pada:</label>
+                        <select id="score-target-select" class="w-full bg-slate-900 border border-slate-700 rounded p-2 text-sm text-white focus:outline-none focus:border-blue-500">
+                            <option value="11">11 Mata (Pantas)</option>
+                            <option value="21">21 Mata (Perlawanan Penuh)</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Controls Guide -->
+                <div class="text-xs text-slate-400 mb-6 space-y-1 bg-slate-900/40 p-3 rounded-lg border border-slate-800">
+                    <p><span class="text-blue-400 font-bold">Pemain 1:</span> WASD / Anak Panah = Bergerak/Lompat</p>
+                    <p><span class="text-emerald-400 font-bold">J:</span> Pukulan Jauh (Clear) | <span class="text-red-400 font-bold">K:</span> Smash / Drive | <span class="text-amber-400 font-bold">L:</span> Drop Shot</p>
+                </div>
+
+                <!-- Start Button -->
+                <button id="btn-start" class="w-full py-3.5 px-6 bg-gradient-to-r from-blue-600 to-emerald-600 hover:from-blue-500 hover:to-emerald-500 font-extrabold text-lg text-white rounded-xl shadow-lg transform transition active:scale-95 border border-white/20">
+                    MULA PERMAINAN
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- On-Screen Touch Controls (Mobile Friendly) -->
+    <div id="mobile-controls" class="w-full max-w-4xl flex justify-between items-center mt-3 px-2">
+        <!-- Directional Pad -->
+        <div class="flex space-x-2">
+            <button id="t-left" class="touch-btn w-12 h-12 sm:w-14 sm:h-14 rounded-full flex items-center justify-center text-xl font-bold">◄</button>
+            <button id="t-up" class="touch-btn w-12 h-12 sm:w-14 sm:h-14 rounded-full flex items-center justify-center text-xl font-bold">▲</button>
+            <button id="t-right" class="touch-btn w-12 h-12 sm:w-14 sm:h-14 rounded-full flex items-center justify-center text-xl font-bold">►</button>
+        </div>
+
+        <!-- Pause / Sound button -->
+        <div class="flex space-x-2">
+            <button id="btn-sound-toggle" class="touch-btn px-3 py-2 rounded-lg text-xs font-bold flex items-center gap-1">🔊 BGM</button>
+            <button id="btn-pause" class="touch-btn px-3 py-2 rounded-lg text-xs font-bold">Pause ⏸</button>
+        </div>
+
+        <!-- Action Buttons -->
+        <div class="flex space-x-2">
+            <button id="t-clear" class="touch-btn w-12 h-12 sm:w-14 sm:h-14 rounded-full flex flex-col items-center justify-center text-xs font-bold text-emerald-300">
+                <span>Jauh</span>
+                <span class="text-[9px] opacity-75">(J)</span>
+            </button>
+            <button id="t-smash" class="touch-btn w-12 h-12 sm:w-14 sm:h-14 rounded-full flex flex-col items-center justify-center text-xs font-bold text-red-400">
+                <span>Smash</span>
+                <span class="text-[9px] opacity-75">(K)</span>
+            </button>
+            <button id="t-drop" class="touch-btn w-12 h-12 sm:w-14 sm:h-14 rounded-full flex flex-col items-center justify-center text-xs font-bold text-amber-300">
+                <span>Drop</span>
+                <span class="text-[9px] opacity-75">(L)</span>
+            </button>
+        </div>
+    </div>
+</div>
+
+<script>
+/**
+ * JAGUH BADMINTON 2D - GAME ENGINE
+ * Engineered with HTML5 Canvas & Web Audio Synthesizer
+ */
+
+// Global Game State
+const canvas = document.getElementById('badmintonCanvas');
+const ctx = canvas.getContext('2d');
+
+// UI Elements
+const menuOverlay = document.getElementById('menu-overlay');
+const menuSubtitle = document.getElementById('menu-subtitle');
+const btnStart = document.getElementById('btn-start');
+const btnPause = document.getElementById('btn-pause');
+const btnSoundToggle = document.getElementById('btn-sound-toggle');
+const scoreP1Elem = document.getElementById('score-p1');
+const scoreP2Elem = document.getElementById('score-p2');
+const gameStatusElem = document.getElementById('game-status-text');
+const targetScoreText = document.getElementById('target-score-text');
+const modeSelect = document.getElementById('mode-select');
+const scoreTargetSelect = document.getElementById('score-target-select');
+const p2NameDisplay = document.getElementById('p2-name-display');
+const p2Avatar = document.getElementById('p2-avatar');
+
+// Dimensions & Constants
+const WIDTH = 1000;
+const HEIGHT = 550;
+const COURT_Y = 460; // Floor Y position
+const NET_X = WIDTH / 2;
+const NET_HEIGHT = 140;
+const NET_Y = COURT_Y - NET_HEIGHT;
+const GRAVITY = 0.42;
+
+let isGameRunning = false;
+let isPaused = false;
+let soundEnabled = true;
+let gameMode = 'vsAI'; // 'vsAI' or 'vsPlayer'
+let targetScore = 11;
+let scoreP1 = 0;
+let scoreP2 = 0;
+let servingPlayer = 1; // 1 = Left, 2 = Right
+let rallyActive = false;
+let lastHitBy = 0; // 1 or 2
+let particles = [];
+let hitEffects = [];
+
+// Sound Synthesizer via Web Audio API
+class AudioSynthesizer {
+    constructor() {
+        this.ctx = null;
+    }
+
+    init() {
+        if (!this.ctx) {
+            this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+        }
+    }
+
+    playHitSound(type = 'normal') {
+        if (!soundEnabled) return;
+        this.init();
+        
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+
+        const now = this.ctx.currentTime;
+
+        if (type === 'smash') {
+            osc.type = 'triangle';
+            osc.frequency.setValueAtTime(320, now);
+            osc.frequency.exponentialRampToValueAtTime(80, now + 0.12);
+            gain.gain.setValueAtTime(1.0, now);
+            gain.gain.exponentialRampToValueAtTime(0.01, now + 0.12);
+            osc.start(now);
+            osc.stop(now + 0.12);
+        } else if (type === 'drop') {
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(450, now);
+            osc.frequency.exponentialRampToValueAtTime(200, now + 0.08);
+            gain.gain.setValueAtTime(0.4, now);
+            gain.gain.exponentialRampToValueAtTime(0.01, now + 0.08);
+            osc.start(now);
+            osc.stop(now + 0.08);
+        } else { // Clear / High lob
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(280, now);
+            osc.frequency.exponentialRampToValueAtTime(150, now + 0.15);
+            gain.gain.setValueAtTime(0.7, now);
+            gain.gain.exponentialRampToValueAtTime(0.01, now + 0.15);
+            osc.start(now);
+            osc.stop(now + 0.15);
+        }
+    }
+
+    playScoreSound(isPointP1) {
+        if (!soundEnabled) return;
+        this.init();
+        const now = this.ctx.currentTime;
+        
+        const notes = isPointP1 ? [440, 554, 659] : [330, 293, 220];
+        notes.forEach((freq, index) => {
+            const osc = this.ctx.createOscillator();
+            const gain = this.ctx.createGain();
+            osc.connect(gain);
+            gain.connect(this.ctx.destination);
+            
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(freq, now + index * 0.1);
+            gain.gain.setValueAtTime(0.3, now + index * 0.1);
+            gain.gain.exponentialRampToValueAtTime(0.01, now + index * 0.1 + 0.2);
+            
+            osc.start(now + index * 0.1);
+            osc.stop(now + index * 0.1 + 0.2);
+        });
+    }
+
+    playWhistle() {
+        if (!soundEnabled) return;
+        this.init();
+        const now = this.ctx.currentTime;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+        
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(1800, now);
+        osc.frequency.linearRampToValueAtTime(2200, now + 0.15);
+        gain.gain.setValueAtTime(0.2, now);
+        gain.gain.exponentialRampToValueAtTime(0.01, now + 0.3);
+        
+        osc.start(now);
+        osc.stop(now + 0.3);
+    }
+}
+
+const audioSynth = new AudioSynthesizer();
+
+// Player Class
+class Player {
+    constructor(id, x, color, name) {
+        this.id = id;
+        this.startX = x;
+        this.x = x;
+        this.y = COURT_Y;
+        this.vx = 0;
+        this.vy = 0;
+        this.width = 30;
+        this.height = 75;
+        this.speed = 5.5;
+        this.jumpForce = -11.5;
+        this.isGrounded = true;
+        this.color = color;
+        this.name = name;
+        this.racketAngle = 0;
+        this.isSwinging = false;
+        this.swingTimer = 0;
+        this.facing = id === 1 ? 1 : -1;
+    }
+
+    reset() {
+        this.x = this.startX;
+        this.y = COURT_Y;
+        this.vx = 0;
+        this.vy = 0;
+        this.isGrounded = true;
+        this.racketAngle = 0;
+        this.isSwinging = false;
+    }
+
+    update() {
+        // Physics logic
+        this.x += this.vx;
+        this.y += this.vy;
+
+        // Gravity
+        if (!this.isGrounded) {
+            this.vy += GRAVITY;
+        }
+
+        // Court limits
+        if (this.y >= COURT_Y) {
+            this.y = COURT_Y;
+            this.vy = 0;
+            this.isGrounded = true;
+        }
+
+        // Boundary limits depending on court side
+        if (this.id === 1) {
+            // Player 1 left side (60 to NET_X - 25)
+            if (this.x < 50) this.x = 50;
+            if (this.x > NET_X - 35) this.x = NET_X - 35;
+        } else {
+            // Player 2 right side (NET_X + 25 to WIDTH - 50)
+            if (this.x < NET_X + 35) this.x = NET_X + 35;
+            if (this.x > WIDTH - 50) this.x = WIDTH - 50;
+        }
+
+        // Handle racket swing animation
+        if (this.isSwinging) {
+            this.swingTimer += 0.2;
+            if (this.swingTimer >= Math.PI) {
+                this.isSwinging = false;
+                this.swingTimer = 0;
+            }
+        }
+    }
+
+    swing() {
+        this.isSwinging = true;
+        this.swingTimer = 0;
+    }
+
+    draw() {
+        ctx.save();
+        ctx.translate(this.x, this.y);
+
+        // Player Shadow
+        ctx.beginPath();
+        ctx.ellipse(0, 0, 20, 6, 0, 0, Math.PI * 2);
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.3)';
+        ctx.fill();
+
+        // Racket swing animation calculation
+        let currentRacketAngle = this.facing === 1 ? -0.4 : 0.4;
+        if (this.isSwinging) {
+            currentRacketAngle += Math.sin(this.swingTimer) * 2.2 * this.facing;
+        }
+
+        // Draw Player Body (Stickman/Stylized Athlete)
+        // Legs
+        ctx.strokeStyle = '#f8fafc';
+        ctx.lineWidth = 4;
+        ctx.lineCap = 'round';
+
+        const legOffset = Math.sin(this.x * 0.1) * (this.vx !== 0 ? 10 : 0);
+        
+        // Left leg
+        ctx.beginPath();
+        ctx.moveTo(0, -30);
+        ctx.lineTo(-10 + legOffset, -15);
+        ctx.lineTo(-12 + legOffset, 0);
+        ctx.stroke();
+
+        // Right leg
+        ctx.beginPath();
+        ctx.moveTo(0, -30);
+        ctx.lineTo(10 - legOffset, -15);
+        ctx.lineTo(12 - legOffset, 0);
+        ctx.stroke();
+
+        // Torso / Jersey
+        ctx.beginPath();
+        ctx.moveTo(0, -30);
+        ctx.lineTo(0, -55);
+        ctx.strokeStyle = this.color;
+        ctx.lineWidth = 14;
+        ctx.stroke();
+
+        // Head
+        ctx.beginPath();
+        ctx.arc(0, -68, 10, 0, Math.PI * 2);
+        ctx.fillStyle = '#fde047';
+        ctx.fill();
+        ctx.lineWidth = 2;
+        ctx.strokeStyle = '#334155';
+        ctx.stroke();
+
+        // Racket Arm & Racket
+        ctx.save();
+        ctx.translate(0, -50);
+        ctx.rotate(currentRacketAngle);
+
+        // Arm
+        ctx.beginPath();
+        ctx.moveTo(0, 0);
+        ctx.lineTo(18 * this.facing, -10);
+        ctx.strokeStyle = '#f8fafc';
+        ctx.lineWidth = 4;
+        ctx.stroke();
+
+        // Racket Shaft & Head
+        const rx = 18 * this.facing;
+        const ry = -10;
+        ctx.beginPath();
+        ctx.moveTo(rx, ry);
+        ctx.lineTo(rx + 25 * this.facing, ry - 25);
+        ctx.strokeStyle = '#cbd5e1';
+        ctx.lineWidth = 3;
+        ctx.stroke();
+
+        // Racket Head Ring
+        ctx.beginPath();
+        ctx.ellipse(rx + 33 * this.facing, ry - 33, 11, 14, (this.facing * Math.PI) / 4, 0, Math.PI * 2);
+        ctx.strokeStyle = '#e2e8f0';
+        ctx.lineWidth = 2;
+        ctx.fillStyle = 'rgba(255,255,255,0.15)';
+        ctx.fill();
+        ctx.stroke();
+
+        ctx.restore();
+        ctx.restore();
+    }
+}
+
+// Shuttlecock Class
+class Shuttlecock {
+    constructor() {
+        this.reset();
+    }
+
+    reset() {
+        this.x = 200;
+        this.y = 250;
+        this.vx = 0;
+        this.vy = 0;
+        this.radius = 6;
+        this.drag = 0.988; // Air resistance
+        this.rotation = 0;
+    }
+
+    serve(playerNum) {
+        if (playerNum === 1) {
+            this.x = p1.x + 25;
+            this.y = p1.y - 45;
+            this.vx = 6.5;
+            this.vy = -7.5;
+            lastHitBy = 1;
+        } else {
+            this.x = p2.x - 25;
+            this.y = p2.y - 45;
+            this.vx = -6.5;
+            this.vy = -7.5;
+            lastHitBy = 2;
+        }
+        rallyActive = true;
+        audioSynth.playHitSound('drop');
+    }
+
+    update() {
+        if (!rallyActive) return;
+
+        // Apply Drag and Velocity
+        this.vx *= this.drag;
+        this.vy += GRAVITY * 0.75; // Shuttlecock floats slightly more than rigid body
+
+        this.x += this.vx;
+        this.y += this.vy;
+
+        // Shuttle angle faces direction of movement
+        this.rotation = Math.atan2(this.vy, this.vx);
+
+        // Net collision check
+        if (Math.abs(this.x - NET_X) < 10 && this.y >= NET_Y) {
+            // Hit net!
+            this.vx *= -0.3;
+            audioSynth.playHitSound('drop');
+            createParticles(this.x, this.y, '#ffffff', 8);
+        }
+
+        // Ground Collision Check (Point scoring)
+        if (this.y >= COURT_Y - 5) {
+            this.y = COURT_Y - 5;
+            this.vx = 0;
+            this.vy = 0;
+            rallyActive = false;
+            handlePointScored();
+        }
+    }
+
+    draw() {
+        ctx.save();
+        ctx.translate(this.x, this.y);
+        ctx.rotate(this.rotation);
+
+        // Shuttlecock Feathers (Cone)
+        ctx.beginPath();
+        ctx.moveTo(8, 0);
+        ctx.lineTo(-10, -6);
+        ctx.lineTo(-7, 0);
+        ctx.lineTo(-10, 6);
+        ctx.closePath();
+        ctx.fillStyle = '#ffffff';
+        ctx.fill();
+        ctx.strokeStyle = '#cbd5e1';
+        ctx.lineWidth = 1;
+        ctx.stroke();
+
+        // Cork Head
+        ctx.beginPath();
+        ctx.arc(6, 0, 4, 0, Math.PI * 2);
+        ctx.fillStyle = '#ef4444';
+        ctx.fill();
+
+        ctx.restore();
+    }
+}
+
+// Particle Effect System
+function createParticles(x, y, color, count = 12) {
+    for (let i = 0; i < count; i++) {
+        particles.push({
+            x: x,
+            y: y,
+            vx: (Math.random() - 0.5) * 8,
+            vy: (Math.random() - 0.5) * 8,
+            life: 1.0,
+            decay: Math.random() * 0.05 + 0.03,
+            color: color,
+            size: Math.random() * 4 + 2
+        });
+    }
+}
+
+function updateAndDrawParticles() {
+    for (let i = particles.length - 1; i >= 0; i--) {
+        let p = particles[i];
+        p.x += p.vx;
+        p.y += p.vy;
+        p.life -= p.decay;
+
+        if (p.life <= 0) {
+            particles.splice(i, 1);
+            continue;
+        }
+
+        ctx.save();
+        ctx.globalAlpha = p.life;
+        ctx.fillStyle = p.color;
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+    }
+}
+
+// Hit Impact Text Visual Effect
+function addHitText(x, y, text, color) {
+    hitEffects.push({
+        x: x,
+        y: y - 20,
+        text: text,
+        color: color,
+        life: 1.0,
+        vy: -1.2
+    });
+}
+
+function updateAndDrawHitEffects() {
+    for (let i = hitEffects.length - 1; i >= 0; i--) {
+        let h = hitEffects[i];
+        h.y += h.vy;
+        h.life -= 0.03;
+
+        if (h.life <= 0) {
+            hitEffects.splice(i, 1);
+            continue;
+        }
+
+        ctx.save();
+        ctx.globalAlpha = h.life;
+        ctx.font = '900 16px Outfit, sans-serif';
+        ctx.fillStyle = h.color;
+        ctx.textAlign = 'center';
+        ctx.fillText(h.text, h.x, h.y);
+        ctx.restore();
+    }
+}
+
+// Instantiate Objects
+const p1 = new Player(1, 200, '#2563eb', 'Pemain 1');
+const p2 = new Player(2, 800, '#dc2626', 'Komputer (AI)');
+const shuttle = new Shuttlecock();
+
+// Input Listeners
+const keys = {};
+
+window.addEventListener('keydown', (e) => {
+    keys[e.code] = true;
+
+    if (!isGameRunning || isPaused) return;
+
+    // Player 1 Shots Trigger
+    if (e.code === 'KeyJ') hitShuttle(p1, 'clear');
+    if (e.code === 'KeyK') hitShuttle(p1, 'smash');
+    if (e.code === 'KeyL') hitShuttle(p1, 'drop');
+
+    // Player 2 Shots Trigger (In 2 Player Mode)
+    if (gameMode === 'vsPlayer') {
+        if (e.code === 'Numpad1' || e.code === 'KeyZ') hitShuttle(p2, 'clear');
+        if (e.code === 'Numpad2' || e.code === 'KeyX') hitShuttle(p2, 'smash');
+        if (e.code === 'Numpad3' || e.code === 'KeyC') hitShuttle(p2, 'drop');
+    }
+
+    // Serve trigger if rally not active
+    if (e.code === 'Space' && !rallyActive) {
+        shuttle.serve(servingPlayer);
+    }
+});
+
+window.addEventListener('keyup', (e) => {
+    keys[e.code] = false;
+});
+
+// Touch Button Listeners
+function bindTouchButton(elemId, code) {
+    const btn = document.getElementById(elemId);
+    if (!btn) return;
+
+    const startHandler = (e) => {
+        e.preventDefault();
+        keys[code] = true;
+        btn.classList.add('active');
+
+        if (!isGameRunning || isPaused) return;
+
+        if (code === 'KeyJ') hitShuttle(p1, 'clear');
+        if (code === 'KeyK') hitShuttle(p1, 'smash');
+        if (code === 'KeyL') hitShuttle(p1, 'drop');
+        if (!rallyActive) shuttle.serve(servingPlayer);
+    };
+
+    const endHandler = (e) => {
+        e.preventDefault();
+        keys[code] = false;
+        btn.classList.remove('active');
+    };
+
+    btn.addEventListener('touchstart', startHandler);
+    btn.addEventListener('touchend', endHandler);
+    btn.addEventListener('mousedown', startHandler);
+    btn.addEventListener('mouseup', endHandler);
+}
+
+bindTouchButton('t-left', 'KeyA');
+bindTouchButton('t-up', 'KeyW');
+bindTouchButton('t-right', 'KeyD');
+bindTouchButton('t-clear', 'KeyJ');
+bindTouchButton('t-smash', 'KeyK');
+bindTouchButton('t-drop', 'KeyL');
+
+// Process Keyboard Input for Movements
+function processMovementInput() {
+    // Player 1 (WASD or Arrows)
+    p1.vx = 0;
+    if (keys['KeyA'] || keys['ArrowLeft']) p1.vx = -p1.speed;
+    if (keys['KeyD'] || keys['ArrowRight']) p1.vx = p1.speed;
+    if ((keys['KeyW'] || keys['ArrowUp']) && p1.isGrounded) {
+        p1.vy = p1.jumpForce;
+        p1.isGrounded = false;
+    }
+
+    // Player 2 Manual Input (Only if vsPlayer Mode)
+    if (gameMode === 'vsPlayer') {
+        p2.vx = 0;
+        if (keys['KeyI'] || keys['Numpad8']) {
+            if (p2.isGrounded) {
+                p2.vy = p2.jumpForce;
+                p2.isGrounded = false;
+            }
+        }
+        if (keys['KeyJ'] || keys['Numpad4']) p2.vx = -p2.speed;
+        if (keys['KeyL'] || keys['Numpad6']) p2.vx = p2.speed;
+    }
+}
+
+// AI Intelligence Logic for Player 2
+function processAI() {
+    if (gameMode !== 'vsAI' || !isGameRunning || isPaused) return;
+
+    // AI positioning logic
+    const targetX = rallyActive ? Math.max(NET_X + 60, Math.min(WIDTH - 80, shuttle.x + 30)) : 800;
+    const distanceToShuttleX = shuttle.x - p2.x;
+    const distanceToShuttleY = shuttle.y - (p2.y - 40);
+
+    // Movement
+    if (p2.x < targetX - 15) {
+        p2.vx = p2.speed * 0.85;
+    } else if (p2.x > targetX + 15) {
+        p2.vx = -p2.speed * 0.85;
+    } else {
+        p2.vx = 0;
+    }
+
+    // Auto Serve for AI
+    if (!rallyActive && servingPlayer === 2) {
+        setTimeout(() => {
+            if (!rallyActive && servingPlayer === 2) shuttle.serve(2);
+        }, 1000);
+    }
+
+    // AI Shot Execution Trigger
+    if (rallyActive && shuttle.x > NET_X - 50) {
+        const hitRange = 90;
+        const dist = Math.hypot(shuttle.x - p2.x, shuttle.y - (p2.y - 45));
+
+        if (dist < hitRange) {
+            // AI Jump logic if shuttle is high
+            if (shuttle.y < p2.y - 60 && p2.isGrounded && Math.random() < 0.6) {
+                p2.vy = p2.jumpForce;
+                p2.isGrounded = false;
+            }
+
+            // AI Select Shot Type based on shuttle position
+            let chosenShot = 'clear';
+            if (shuttle.y < p2.y - 50 && shuttle.x > NET_X + 150) {
+                chosenShot = Math.random() < 0.6 ? 'smash' : 'drop';
+            } else if (shuttle.x < NET_X + 120) {
+                chosenShot = Math.random() < 0.5 ? 'drop' : 'clear';
+            }
+
+            hitShuttle(p2, chosenShot);
+        }
+    }
+}
+
+// Shuttle Hit Physics Processing
+function hitShuttle(player, shotType) {
+    // Calculate distance between player racket height and shuttlecock
+    const racketY = player.y - 45;
+    const dist = Math.hypot(shuttle.x - player.x, shuttle.y - racketY);
+
+    // Reachable hit radius
+    if (dist < 95) {
+        player.swing();
+        lastHitBy = player.id;
+
+        let powerX = 0;
+        let powerY = 0;
+        const direction = player.id === 1 ? 1 : -1;
+
+        if (shotType === 'smash') {
+            powerX = 15.5 * direction;
+            powerY = 4.5; // Downward steep angle
+            audioSynth.playHitSound('smash');
+            createParticles(shuttle.x, shuttle.y, '#ef4444', 16);
+            addHitText(shuttle.x, shuttle.y, 'SMASH!', '#ef4444');
+        } else if (shotType === 'drop') {
+            powerX = 5.5 * direction;
+            powerY = -3.2; // Soft net drop
+            audioSynth.playHitSound('drop');
+            createParticles(shuttle.x, shuttle.y, '#f59e0b', 8);
+            addHitText(shuttle.x, shuttle.y, 'Drop Shot', '#f59e0b');
+        } else { // Clear / High lob
+            powerX = 11.5 * direction;
+            powerY = -11.0; // High arc
+            audioSynth.playHitSound('clear');
+            createParticles(shuttle.x, shuttle.y, '#10b981', 10);
+            addHitText(shuttle.x, shuttle.y, 'Clear!', '#10b981');
+        }
+
+        // Apply velocity with small variance
+        shuttle.vx = powerX + (Math.random() - 0.5);
+        shuttle.vy = powerY;
+    }
+}
+
+// Point Scoring Logic & Rules
+function handlePointScored() {
+    let pointWinner = 0;
+
+    // Determine court side landing
+    if (shuttle.x < NET_X) {
+        // Landed on Left Side (Player 1 side)
+        pointWinner = 2;
+    } else {
+        // Landed on Right Side (Player 2 side)
+        pointWinner = 1;
+    }
+
+    if (pointWinner === 1) {
+        scoreP1++;
+        servingPlayer = 1;
+        gameStatusElem.innerText = 'Mata untuk Pemain 1!';
+        gameStatusElem.className = 'text-sm font-semibold text-blue-400 animate-pulse';
+        audioSynth.playScoreSound(true);
+    } else {
+        scoreP2++;
+        servingPlayer = 2;
+        gameStatusElem.innerText = gameMode === 'vsAI' ? 'Mata untuk AI!' : 'Mata untuk Pemain 2!';
+        gameStatusElem.className = 'text-sm font-semibold text-red-400 animate-pulse';
+        audioSynth.playScoreSound(false);
+    }
+
+    // Update Scores UI
+    scoreP1Elem.innerText = scoreP1;
+    scoreP2Elem.innerText = scoreP2;
+
+    // Check match victory condition
+    if (scoreP1 >= targetScore || scoreP2 >= targetScore) {
+        endGame(scoreP1 >= targetScore ? 1 : 2);
+    } else {
+        // Reset player positions for next serve
+        setTimeout(() => {
+            p1.reset();
+            p2.reset();
+            shuttle.reset();
+            shuttle.x = servingPlayer === 1 ? p1.x + 20 : p2.x - 20;
+            shuttle.y = p1.y - 45;
+            gameStatusElem.innerText = `Servis: Pemain ${servingPlayer}`;
+        }, 1200);
+    }
+}
+
+// Game Over Handler
+function endGame(winner) {
+    isGameRunning = false;
+    audioSynth.playWhistle();
+
+    const winnerName = winner === 1 ? 'Pemain 1' : (gameMode === 'vsAI' ? 'Komputer (AI)' : 'Pemain 2');
+    menuSubtitle.innerText = `TAHNIAH! ${winnerName.toUpperCase()} MENANG PERLAWANAN!`;
+    btnStart.innerText = 'MAIN SEMULA';
+    menuOverlay.classList.remove('hidden');
+}
+
+// Render Badminton Court Layout
+function drawCourt() {
+    // Court Surface Gradient
+    const courtGradient = ctx.createLinearGradient(0, 0, 0, HEIGHT);
+    courtGradient.addColorStop(0, '#064e3b');
+    courtGradient.addColorStop(1, '#022c22');
+    ctx.fillStyle = courtGradient;
+    ctx.fillRect(0, 0, WIDTH, HEIGHT);
+
+    // Synthetic Court Mat Texture Lines
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.05)';
+    ctx.lineWidth = 1;
+    for (let i = 0; i < WIDTH; i += 40) {
+        ctx.beginPath();
+        ctx.moveTo(i, COURT_Y);
+        ctx.lineTo(i, HEIGHT);
+        ctx.stroke();
+    }
+
+    // Floor Base Line
+    ctx.fillStyle = '#1e293b';
+    ctx.fillRect(0, COURT_Y, WIDTH, HEIGHT - COURT_Y);
+
+    // Court Boundary Lines (White lines)
+    ctx.strokeStyle = '#ffffff';
+    ctx.lineWidth = 4;
+
+    // Outer Baseline
+    ctx.beginPath();
+    ctx.moveTo(50, COURT_Y);
+    ctx.lineTo(WIDTH - 50, COURT_Y);
+    ctx.stroke();
+
+    // Left & Right Outer Edges
+    ctx.beginPath();
+    ctx.moveTo(50, COURT_Y);
+    ctx.lineTo(50, COURT_Y - 220);
+    ctx.moveTo(WIDTH - 50, COURT_Y);
+    ctx.lineTo(WIDTH - 50, COURT_Y - 220);
+    ctx.stroke();
+
+    // Service Line Indicators (Short Service Lines)
+    ctx.lineWidth = 2;
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.6)';
+    ctx.beginPath();
+    ctx.moveTo(NET_X - 120, COURT_Y);
+    ctx.lineTo(NET_X - 120, COURT_Y - 15);
+    ctx.moveTo(NET_X + 120, COURT_Y);
+    ctx.lineTo(NET_X + 120, COURT_Y - 15);
+    ctx.stroke();
+
+    // Draw Net (Middle)
+    // Posts
+    ctx.strokeStyle = '#e2e8f0';
+    ctx.lineWidth = 6;
+    ctx.beginPath();
+    ctx.moveTo(NET_X, COURT_Y);
+    ctx.lineTo(NET_X, NET_Y);
+    ctx.stroke();
+
+    // Net Mesh Pattern
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.25)';
+    ctx.fillRect(NET_X - 2, NET_Y, 4, NET_HEIGHT);
+
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
+    ctx.lineWidth = 1;
+    for (let y = NET_Y; y < COURT_Y; y += 10) {
+        ctx.beginPath();
+        ctx.moveTo(NET_X - 4, y);
+        ctx.lineTo(NET_X + 4, y);
+        ctx.stroke();
+    }
+
+    // Net Top Tape (White Band)
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(NET_X - 5, NET_Y, 10, 6);
+}
+
+// Main Game Loop
+function gameLoop() {
+    // Clear Canvas
+    ctx.clearRect(0, 0, WIDTH, HEIGHT);
+
+    // Render Background Court
+    drawCourt();
+
+    if (isGameRunning && !isPaused) {
+        // Update Game Objects
+        processMovementInput();
+        processAI();
+
+        p1.update();
+        p2.update();
+        shuttle.update();
+    }
+
+    // Render Game Objects
+    p1.draw();
+    p2.draw();
+    shuttle.draw();
+
+    // Render Particle Systems
+    updateAndDrawParticles();
+    updateAndDrawHitEffects();
+
+    // Request next frame
+    requestAnimationFrame(gameLoop);
+}
+
+// Event Listeners for Game Start / Setup
+btnStart.addEventListener('click', () => {
+    gameMode = modeSelect.value;
+    targetScore = parseInt(scoreTargetSelect.value);
+
+    // Update Player 2 Display Label
+    if (gameMode === 'vsPlayer') {
+        p2NameDisplay.innerText = 'Pemain 2';
+        p2Avatar.innerText = 'P2';
+        p2.name = 'Pemain 2';
+    } else {
+        p2NameDisplay.innerText = 'Komputer (AI)';
+        p2Avatar.innerText = 'AI';
+        p2.name = 'Komputer (AI)';
+    }
+
+    targetScoreText.innerText = targetScore;
+
+    // Reset Scores
+    scoreP1 = 0;
+    scoreP2 = 0;
+    scoreP1Elem.innerText = '0';
+    scoreP2Elem.innerText = '0';
+    servingPlayer = 1;
+
+    // Reset Objects
+    p1.reset();
+    p2.reset();
+    shuttle.reset();
+    shuttle.x = p1.x + 20;
+    shuttle.y = p1.y - 45;
+
+    isGameRunning = true;
+    isPaused = false;
+    menuOverlay.classList.add('hidden');
+    audioSynth.playWhistle();
+});
+
+btnPause.addEventListener('click', () => {
+    if (!isGameRunning) return;
+    isPaused = !isPaused;
+    btnPause.innerText = isPaused ? 'Sambung ▶' : 'Pause ⏸';
+    gameStatusElem.innerText = isPaused ? 'DIJEDA (PAUSED)' : `Servis: Pemain ${servingPlayer}`;
+});
+
+btnSoundToggle.addEventListener('click', () => {
+    soundEnabled = !soundEnabled;
+    btnSoundToggle.innerText = soundEnabled ? '🔊 BGM' : '🔇 Mute';
+});
+
+// Initialize canvas game loop on window load
+window.onload = () => {
+    gameLoop();
+};
+</script>
+</body>
+</html>
