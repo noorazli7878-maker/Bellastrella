@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="ms">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Permainan Badminton 2D</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div id="game-container">
+        <!-- Papan Skor Utama -->
+        <div id="scoreboard">
+            <div class="score-card player">
+                <span class="label">PEMAJN 1</span>
+                <span id="score-p1" class="score">0</span>
+            </div>
+            <div id="match-info">
+                <span id="game-status">Sedia Bertanding</span>
+                <div class="target-badge"><span id="target-score">11</span> MATA</div>
+            </div>
+            <div class="score-card cpu">
+                <span class="label" id="p2-label">AI LAWAN</span>
+                <span id="score-p2" class="score">0</span>
+            </div>
+        </div>
+
+        <!-- Canvas Permainan -->
+        <div id="canvas-wrapper">
+            <canvas id="gameCanvas" width="900" height="480"></canvas>
+            
+            <!-- Menu Utama -->
+            <div id="menu-overlay" class="overlay">
+                <h1>KEJOHANAN BADMINTON</h1>
+                <p class="subtitle">Pilih Mod Permainan</p>
+                <div class="menu-buttons">
+                    <button id="btn-vs-ai" class="btn primary">Pemain vs AI</button>
+                    <button id="btn-vs-player" class="btn secondary">Pemain vs Pemain (2P)</button>
+                </div>
+                <div class="settings-group">
+                    <label>Sasaran Mata:</label>
+                    <button id="btn-score-11" class="btn-toggle active">11 Mata</button>
+                    <button id="btn-score-21" class="btn-toggle">21 Mata</button>
+                </div>
+            </div>
+
+            <!-- Overlay Penamat Permainan -->
+            <div id="gameover-overlay" class="overlay hidden">
+                <h1 id="winner-text">PEMAIN 1 MENANG!</h1>
+                <p id="final-score-text">Skor Akhir: 11 - 8</p>
+                <button id="btn-restart" class="btn primary">Main Semula</button>
+            </div>
+        </div>
+
+        <!-- Kawalan Kekunci Info & Touch Screen Controls -->
+        <div id="controls-info">
+            <div class="p1-controls">
+                <strong>Pemain 1 (Kiri):</strong> Move [A][D] | Jump [W] | Lob [J] | Smash [K] | Drop [L]
+            </div>
+            <div class="p2-controls hidden-mobile">
+                <strong>Pemain 2 (Kanan):</strong> Move [←][→] | Jump [↑] | Lob [Num 1] | Smash [Num 2] | Drop [Num 3]
+            </div>
+        </div>
+
+        <!-- Touch Controls (Mobile/Tablet) -->
+        <div id="touch-controls">
+            <div class="touch-group left">
+                <button id="btn-touch-left" class="t-btn">◀</button>
+                <button id="btn-touch-jump" class="t-btn action">▲ LOMPAT</button>
+                <button id="btn-touch-right" class="t-btn">▶</button>
+            </div>
+            <div class="touch-group right">
+                <button id="btn-touch-lob" class="t-btn shot">LOB (J)</button>
+                <button id="btn-touch-smash" class="t-btn shot smash">SMASH (K)</button>
+                <button id="btn-touch-drop" class="t-btn shot drop">DROP (L)</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
